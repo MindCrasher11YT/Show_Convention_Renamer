@@ -1,0 +1,96 @@
+import os
+import re
+
+# Define the directory where your videos are located
+directory = r'C:\Users\Jordon\Desktop\Test Folder'
+
+# Define a dictionary to map show names to naming conventions
+show_conventions = {
+    'Show A': {
+        'season_pattern': re.compile(r'Season (\d+)'),
+        'episode_patterns': [re.compile(r'Show A Episode (\d+)'), re.compile(r'Show A S2EP(\d+)')],
+    },
+    'Show B': {
+        'season_pattern': None,
+        'episode_patterns': [re.compile(r'Show B Episode (\d+)')],
+    },
+    # Add more shows and conventions as needed
+}
+
+def rename_files(root, show_name):
+    # Loop through the files in the current directory
+    for filename in os.listdir(root):
+        file_path = os.path.join(root, filename)
+
+        # Check if the file is a video (you can add more extensions as needed)
+        if os.path.isfile(file_path) and filename.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv')):
+            # Check if the show has a convention defined
+            if show_name in show_conventions:
+                convention = show_conventions[show_name]
+
+                # Extract the season number
+                if convention['season_pattern']:
+                    match_season = convention['season_pattern'].search(root)
+                    if match_season:
+                        season_number = match_season.group(1)
+                    else:
+                        season_number = "1"
+                else:
+                    season_number = "1"
+
+                # Try to match episode numbers with available patterns
+                episode_number = None
+                for pattern in convention['episode_patterns']:
+                    match_episode = pattern.search(filename)
+                    if match_episode:
+                        episode_number = match_episode.group(1)
+                        break
+
+                # If episode number is found, create the new filename
+                if episode_number:
+                    episode_number = str(int(episode_number))  # Ensure episode number is an integer
+                    new_filename = f'{show_name} S{int(season_number)}EP{episode_number.zfill(2)}{os.path.splitext(filename)[1]}'
+                    
+                    # Handle filename conflicts
+                    if new_filename != filename:
+                        new_file_path = os.path.join(root, new_filename)
+                        while os.path.exists(new_file_path):
+                            # Increment the episode number
+                            episode_number = str(int(episode_number) + 1)
+                            new_filename = f'{show_name} S{int(season_number)}EP{episode_number.zfill(2)}{os.path.splitext(filename)[1]}'
+                            new_file_path = os.path.join(root, new_filename)
+                    
+                    # Rename the file
+                    os.rename(file_path, new_file_path)
+                    print(f'Renamed: {file_path} -> {new_file_path}')
+                else:
+                    print(f'Skipped: No episode information found for {file_path}')
+            else:
+                # Use a default naming convention for shows without a defined convention
+                episode_number = "01"
+                new_filename = f'{show_name} S1EP{episode_number.zfill(2)}{os.path.splitext(filename)[1]}'
+                
+                # Handle filename conflicts
+                if new_filename != filename:
+                    new_file_path = os.path.join(root, new_filename)
+                    while os.path.exists(new_file_path):
+                        # Increment the episode number
+                        episode_number = str(int(episode_number) + 1)
+                        new_filename = f'{show_name} S1EP{episode_number.zfill(2)}{os.path.splitext(filename)[1]}'
+                        new_file_path = os.path.join(root, new_filename)
+                
+                # Rename the file
+                os.rename(file_path, new_file_path)
+                print(f'Renamed (using default convention): {file_path} -> {new_file_path}')
+
+        # Recursively process subdirectories
+        elif os.path.isdir(file_path):
+            rename_files(file_path, show_name)
+
+# Start the renaming process for each show in the directory
+for show_name in os.listdir(directory):
+    show_folder = os.path.join(directory, show_name)
+    if os.path.isdir(show_folder):
+        rename_files(show_folder, show_name)
+
+print("Renaming complete.")
